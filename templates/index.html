@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Root Cause Analyzer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cream: #FAF8F5;
+      --cream2: #F5F1EC;
+      --cream3: #EDE8E1;
+      --ink: #1A1714;
+      --ink2: #3D3A36;
+      --ink3: #6B6760;
+      --ink4: #9A9690;
+      --border: #E2DDD7;
+      --coral: #D85A30;
+      --coral-light: #FAECE7;
+      --coral-mid: #F0997B;
+      --amber: #BA7517;
+      --amber-light: #FAEEDA;
+      --green: #3B6D11;
+      --green-light: #EAF3DE;
+      --red: #A32D2D;
+      --red-light: #FCEBEB;
+      --blue: #185FA5;
+      --blue-light: #E6F1FB;
+      --serif: 'Playfair Display', serif;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'Inter', sans-serif;
+    }
+
+    body {
+      background: var(--cream);
+      color: var(--ink);
+      font-family: var(--sans);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: var(--cream);
+      border-bottom: 2px solid var(--ink);
+      padding: 0 40px;
+      display: flex;
+      align-items: stretch;
+      justify-content: space-between;
+      height: 64px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-right: 1px solid var(--border);
+      padding-right: 24px;
+    }
+
+    .header-logo {
+      width: 36px; height: 36px;
+      background: var(--ink);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--cream);
+      font-size: 18px;
+    }
+
+    .header-title {
+      font-family: var(--serif);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .header-subtitle {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink4);
+      letter-spacing: 0.1em;
+    }
+
+    .header-center {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      flex: 1;
+      padding: 0 32px;
+    }
+
+    .header-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .header-stat-num {
+      font-family: var(--serif);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1;
+    }
+
+    .header-stat-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--ink4);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .header-divider {
+      width: 1px;
+      height: 32px;
+      background: var(--border);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-left: 24px;
+      border-left: 1px solid var(--border);
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+    }
+
+    /* ── MAIN LAYOUT ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 420px minmax(0, 1fr);
+      min-height: calc(100vh - 64px);
+    }
+
+    /* ── LEFT PANEL ── */
+    .left-panel {
+      border-right: 2px solid var(--ink);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-section {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-section:last-child {
+      border-bottom: none;
+      flex: 1;
+    }
+
+    .panel-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      color: var(--ink4);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .panel-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── LOG INPUT ── */
+    .log-input {
+      width: 100%;
+      background: var(--cream2);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink);
+      line-height: 1.7;
+      resize: none;
+      height: 160px;
+      transition: border-color 0.2s;
+    }
+
+    .log-input:focus {
+      outline: none;
+      border-color: var(--coral);
+    }
+
+    .log-input::placeholder { color: var(--ink4); }
+
+    /* ── FILE DROP ZONE ── */
+    .drop-zone {
+      border: 1.5px dashed var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 10px;
+    }
+
+    .drop-zone:hover {
+      border-color: var(--coral);
+      background: var(--coral-light);
+    }
+
+    .drop-zone input { display: none; }
+
+    .drop-zone p {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink4);
+    }
+
+    .drop-zone span { color: var(--coral); }
+
+    /* ── ANALYZE BUTTON ── */
+    .analyze-btn {
+      width: 100%;
+      margin-top: 12px;
+      padding: 13px;
+      background: var(--ink);
+      border: none;
+      border-radius: 8px;
+      color: var(--cream);
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+    }
+
+    .analyze-btn:hover { background: var(--coral); }
+    .analyze-btn:disabled { background: var(--ink4); cursor: not-allowed; }
+
+    .btn-spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(250,248,245,0.3);
+      border-top-color: var(--cream);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+
+    .analyze-btn.loading .btn-spinner { display: block; }
+    .analyze-btn.loading .btn-label { display: none; }
+
+    /* ── SAMPLE LOGS ── */
+    .sample-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .sample-card {
+      padding: 10px 12px;
+      background: var(--cream2);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .sample-card:hover {
+      border-color: var(--coral);
+      background: var(--coral-light);
+    }
+
+    .sample-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 2px;
+    }
+
+    .sample-meta {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink4);
+    }
+
+    .sev-badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 500;
+      margin-left: 4px;
+    }
+
+    /* ── PIPELINE ── */
+    .pipeline {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .pip-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--cream2);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      transition: all 0.3s;
+    }
+
+    .pip-step.active {
+      border-color: var(--coral);
+      background: var(--coral-light);
+    }
+
+    .pip-step.done {
+      border-color: var(--green);
+      background: var(--green-light);
+    }
+
+    .pip-icon {
+      width: 26px; height: 26px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+      background: var(--cream3);
+      color: var(--ink3);
+    }
+
+    .pip-step.active .pip-icon { background: rgba(216,90,48,0.15); color: var(--coral); }
+    .pip-step.done .pip-icon { background: rgba(59,109,17,0.15); color: var(--green); }
+
+    .pip-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+      flex: 1;
+    }
+
+    .pip-status {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--cream3);
+      color: var(--ink4);
+    }
+
+    .pip-step.active .pip-status { background: rgba(216,90,48,0.1); color: var(--coral); }
+    .pip-step.done .pip-status { background: rgba(59,109,17,0.1); color: var(--green); }
+
+    /* ── RIGHT PANEL ── */
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── WELCOME STATE ── */
+    .welcome-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 40px;
+      text-align: center;
+    }
+
+    .welcome-big {
+      font-family: var(--serif);
+      font-size: 52px;
+      font-weight: 700;
+      line-height: 1.1;
+      color: var(--ink);
+      margin-bottom: 16px;
+    }
+
+    .welcome-big em {
+      color: var(--coral);
+      font-style: italic;
+    }
+
+    .welcome-sub {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink4);
+      line-height: 1.8;
+      max-width: 440px;
+      margin-bottom: 40px;
+    }
+
+    .welcome-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      width: 100%;
+      max-width: 580px;
+    }
+
+    .welcome-card {
+      background: var(--cream2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: left;
+    }
+
+    .welcome-card-num {
+      font-family: var(--serif);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--coral);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .welcome-card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .welcome-card-desc {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink4);
+      line-height: 1.5;
+    }
+
+    /* ── RESULTS STATE ── */
+    .results-state { display: none; flex-direction: column; }
+    .results-state.show { display: flex; }
+
+    /* ── RESULTS HEADER ── */
+    .results-header {
+      display: flex;
+      align-items: stretch;
+      border-bottom: 2px solid var(--ink);
+    }
+
+    .rh-section {
+      padding: 16px 24px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .rh-section:last-child { border-right: none; flex: 1; }
+
+    .rh-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      color: var(--ink4);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .rh-value {
+      font-family: var(--serif);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1;
+    }
+
+    .rh-sub {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink4);
+      margin-top: 2px;
+    }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--cream2);
+    }
+
+    .tab {
+      padding: 12px 20px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink4);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tab.active {
+      color: var(--ink);
+      border-bottom-color: var(--coral);
+      background: var(--cream);
+    }
+
+    .tab:hover:not(.active) { color: var(--ink2); }
+
+    /* ── TAB CONTENT ── */
+    .tab-content { display: none; padding: 24px; flex: 1; overflow-y: auto; }
+    .tab-content.active { display: block; }
+
+    /* ── ROOT CAUSE CARD ── */
+    .cause-card {
+      background: var(--red-light);
+      border: 2px solid #F09595;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cause-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 4px; height: 100%;
+      background: var(--red);
+    }
+
+    .cause-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .cause-title {
+      font-family: var(--serif);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--red);
+    }
+
+    .cause-conf {
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 3px 10px;
+      background: var(--green-light);
+      color: var(--green);
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .cause-text {
+      font-size: 14px;
+      color: var(--ink2);
+      line-height: 1.7;
+    }
+
+    /* ── ANOMALY CHIPS ── */
+    .anomaly-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .anomaly-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    /* ── FIXES ── */
+    .fixes-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+
+    .fix-card {
+      display: flex;
+      gap: 14px;
+      padding: 14px 16px;
+      background: var(--cream2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      align-items: flex-start;
+      transition: border-color 0.2s;
+    }
+
+    .fix-card:hover { border-color: var(--ink3); }
+
+    .fix-num {
+      width: 28px; height: 28px;
+      background: var(--ink);
+      color: var(--cream);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    .fix-body { flex: 1; }
+
+    .fix-text {
+      font-size: 13px;
+      color: var(--ink);
+      line-height: 1.5;
+      margin-bottom: 4px;
+    }
+
+    .fix-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .fix-conf {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--green);
+    }
+
+    .fix-priority {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 1px 7px;
+      border-radius: 3px;
+    }
+
+    /* ── RUNBOOK ── */
+    .runbook-list { display: flex; flex-direction: column; gap: 0; }
+
+    .runbook-step {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+
+    .runbook-step:last-child { border-bottom: none; }
+
+    .runbook-line {
+      position: absolute;
+      left: 13px;
+      top: 42px;
+      bottom: -14px;
+      width: 2px;
+      background: var(--border);
+    }
+
+    .runbook-step:last-child .runbook-line { display: none; }
+
+    .runbook-num {
+      width: 28px; height: 28px;
+      border: 2px solid var(--ink);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      flex-shrink: 0;
+      background: var(--cream);
+      z-index: 1;
+    }
+
+    .runbook-text {
+      font-size: 13px;
+      color: var(--ink);
+      line-height: 1.6;
+      padding-top: 4px;
+    }
+
+    /* ── SIMILAR INCIDENTS ── */
+    .similar-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .similar-card {
+      display: flex;
+      gap: 14px;
+      padding: 14px 16px;
+      background: var(--cream2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      align-items: center;
+    }
+
+    .similar-match {
+      font-family: var(--serif);
+      font-size: 22px;
+      font-weight: 700;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    .similar-body { flex: 1; }
+
+    .similar-id {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink4);
+      margin-bottom: 2px;
+    }
+
+    .similar-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .similar-resolution {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink3);
+      line-height: 1.5;
+    }
+
+    .similar-resolved {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: var(--cream3);
+      color: var(--ink3);
+      white-space: nowrap;
+    }
+
+    /* ── SERVICE GRAPH ── */
+    .graph-container {
+      background: var(--cream2);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      height: 300px;
+    }
+
+    #serviceGraph { width: 100%; height: 100%; }
+
+    /* ── TIMELINE ── */
+    .timeline-list { display: flex; flex-direction: column; gap: 0; }
+
+    .tl-item {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tl-item:last-child { border-bottom: none; }
+
+    .tl-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 5px;
+    }
+
+    .tl-time {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink4);
+      min-width: 72px;
+      margin-top: 2px;
+    }
+
+    .tl-text {
+      font-size: 13px;
+      color: var(--ink);
+      line-height: 1.5;
+    }
+
+    .tl-service {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: var(--cream3);
+      color: var(--ink3);
+      margin-left: 6px;
+    }
+
+    /* ── REPORT ── */
+    .report-box {
+      background: var(--cream2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .report-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--cream3);
+    }
+
+    .report-title {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .report-body {
+      padding: 20px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.8;
+      color: var(--ink2);
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .report-body h2 {
+      font-family: var(--serif);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 16px 0 6px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 4px;
+    }
+
+    .report-body h2:first-child { margin-top: 0; }
+    .report-body p { margin-bottom: 8px; }
+    .report-body ul { padding-left: 20px; margin-bottom: 8px; }
+    .report-body li { margin-bottom: 3px; }
+    .report-body strong { color: var(--ink); }
+
+    /* ── COPY BTN ── */
+    .copy-btn {
+      padding: 6px 14px;
+      background: none;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s;
+    }
+
+    .copy-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+    /* ── STATS ROW ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-box {
+      background: var(--cream2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .stat-n {
+      font-family: var(--serif);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat-l {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--ink4);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      padding: 12px 20px;
+      background: var(--ink);
+      color: var(--cream);
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 12px;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 100;
+    }
+
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .left-panel { border-right: none; border-bottom: 2px solid var(--ink); }
+      .welcome-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">
+        <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+      </div>
+      <div>
+        <div class="header-title">Root Cause Analyzer</div>
+        <div class="header-subtitle">FAISS · LANGCHAIN · HUGGINGFACE · RAG</div>
+      </div>
+    </div>
+    <div class="header-center">
+      <div class="header-stat">
+        <div class="header-stat-num" id="hTotalAnalyzed">0</div>
+        <div class="header-stat-label">Analyzed</div>
+      </div>
+      <div class="header-divider"></div>
+      <div class="header-stat">
+        <div class="header-stat-num">8</div>
+        <div class="header-stat-label">In FAISS index</div>
+      </div>
+      <div class="header-divider"></div>
+      <div class="header-stat">
+        <div class="header-stat-num" id="hAvgConf">—</div>
+        <div class="header-stat-label">Avg confidence</div>
+      </div>
+      <div class="header-divider"></div>
+      <div class="header-stat">
+        <div class="header-stat-num" id="hLastSev">—</div>
+        <div class="header-stat-label">Last severity</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-pill" style="background:var(--green-light); color:var(--green);">
+        <div class="status-dot" style="background:var(--green);"></div>
+        FAISS ready
+      </div>
+      <div class="status-pill" style="background:var(--blue-light); color:var(--blue);">
+        <div class="status-dot" style="background:var(--blue);"></div>
+        RAG active
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <!-- Left Panel -->
+    <div class="left-panel">
+
+      <!-- Log Input -->
+      <div class="panel-section">
+        <div class="panel-label">
+          <i class="ti ti-terminal-2" aria-hidden="true"></i>
+          Paste logs or error trace
+        </div>
+        <textarea class="log-input" id="logInput" placeholder="[ERROR] 2026-05-19 14:23:01 payment-service&#10;java.lang.NullPointerException at PaymentProcessor.java:847&#10;[WARN] DB connection pool exhausted (10/10)&#10;[ERROR] Transaction timeout after 30000ms&#10;..."></textarea>
+
+        <div class="drop-zone" onclick="document.getElementById('fileUpload').click()">
+          <input type="file" id="fileUpload" accept=".log,.txt" onchange="handleFileUpload(event)"/>
+          <p><i class="ti ti-upload" style="font-size:16px; vertical-align:-3px;" aria-hidden="true"></i> Drop log file or <span>click to upload</span></p>
+        </div>
+
+        <button class="analyze-btn" id="analyzeBtn" onclick="runAnalysis()">
+          <div class="btn-spinner"></div>
+          <span class="btn-label">
+            <i class="ti ti-search" style="font-size:15px;" aria-hidden="true"></i>
+            Analyze Root Cause
+          </span>
+        </button>
+      </div>
+
+      <!-- Sample Logs -->
+      <div class="panel-section">
+        <div class="panel-label">
+          <i class="ti ti-file-text" aria-hidden="true"></i>
+          Sample incidents
+        </div>
+        <div class="sample-grid">
+          <div class="sample-card" onclick="loadSample('db')">
+            <div class="sample-name">DB Pool Failure<span class="sev-badge" style="background:var(--red-light);color:var(--red);">P1</span></div>
+            <div class="sample-meta">payment-service</div>
+          </div>
+          <div class="sample-card" onclick="loadSample('memory')">
+            <div class="sample-name">Memory Leak<span class="sev-badge" style="background:var(--amber-light);color:var(--amber);">P2</span></div>
+            <div class="sample-meta">auth-service</div>
+          </div>
+          <div class="sample-card" onclick="loadSample('cascade')">
+            <div class="sample-name">API Cascade<span class="sev-badge" style="background:var(--amber-light);color:var(--amber);">P2</span></div>
+            <div class="sample-meta">order-service</div>
+          </div>
+          <div class="sample-card" onclick="loadSample('oom')">
+            <div class="sample-name">OOM Error<span class="sev-badge" style="background:var(--red-light);color:var(--red);">P1</span></div>
+            <div class="sample-meta">ml-service</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pipeline -->
+      <div class="panel-section">
+        <div class="panel-label">
+          <i class="ti ti-git-branch" aria-hidden="true"></i>
+          Analysis pipeline
+        </div>
+        <div class="pipeline">
+          <div class="pip-step" id="pip-parse">
+            <div class="pip-icon"><i class="ti ti-code" aria-hidden="true"></i></div>
+            <div class="pip-name">Log Parser + Regex</div>
+            <div class="pip-status" id="ps-parse">waiting</div>
+          </div>
+          <div class="pip-step" id="pip-anomaly">
+            <div class="pip-icon"><i class="ti ti-alert-circle" aria-hidden="true"></i></div>
+            <div class="pip-name">Anomaly Detector</div>
+            <div class="pip-status" id="ps-anomaly">waiting</div>
+          </div>
+          <div class="pip-step" id="pip-severity">
+            <div class="pip-icon"><i class="ti ti-gauge" aria-hidden="true"></i></div>
+            <div class="pip-name">Severity Scorer</div>
+            <div class="pip-status" id="ps-severity">waiting</div>
+          </div>
+          <div class="pip-step" id="pip-compress">
+            <div class="pip-icon"><i class="ti ti-compress" aria-hidden="true"></i></div>
+            <div class="pip-name">Log Compressor</div>
+            <div class="pip-status" id="ps-compress">waiting</div>
+          </div>
+          <div class="pip-step" id="pip-faiss">
+            <div class="pip-icon"><i class="ti ti-database-search" aria-hidden="true"></i></div>
+            <div class="pip-name">FAISS RAG Search</div>
+            <div class="pip-status" id="ps-faiss">waiting</div>
+          </div>
+          <div class="pip-step" id="pip-llm">
+            <div class="pip-icon"><i class="ti ti-brain" aria-hidden="true"></i></div>
+            <div class="pip-name">LLM Analysis</div>
+            <div class="pip-status" id="ps-llm">waiting</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Panel -->
+    <div class="right-panel">
+
+      <!-- Welcome State -->
+      <div class="welcome-state" id="welcomeState">
+        <div class="welcome-big">Find the<br><em>root cause</em><br>instantly</div>
+        <div class="welcome-sub">
+          Paste server logs, error traces, or metrics.<br>
+          AI analyses patterns, searches past incidents via FAISS RAG,<br>
+          and identifies the probable root cause in seconds.
+        </div>
+        <div class="welcome-grid">
+          <div class="welcome-card">
+            <div class="welcome-card-num">01</div>
+            <div class="welcome-card-title">Parse + Detect</div>
+            <div class="welcome-card-desc">Regex extracts structure. Anomaly detector finds spikes, cascades, OOM patterns.</div>
+          </div>
+          <div class="welcome-card">
+            <div class="welcome-card-num">02</div>
+            <div class="welcome-card-title">FAISS RAG</div>
+            <div class="welcome-card-desc">Searches 8+ past incidents locally using vector similarity. No cloud needed.</div>
+          </div>
+          <div class="welcome-card">
+            <div class="welcome-card-num">03</div>
+            <div class="welcome-card-title">LLM Reason</div>
+            <div class="welcome-card-desc">AI identifies root cause, suggests fixes with confidence, generates runbook.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results State -->
+      <div class="results-state" id="resultsState">
+
+        <!-- Results Header -->
+        <div class="results-header">
+          <div class="rh-section">
+            <div class="rh-label">Severity</div>
+            <div class="rh-value" id="rhSev" style="color:var(--red);">—</div>
+            <div class="rh-sub" id="rhSevLabel">—</div>
+          </div>
+          <div class="rh-section">
+            <div class="rh-label">Confidence</div>
+            <div class="rh-value" id="rhConf">—</div>
+            <div class="rh-sub">AI certainty</div>
+          </div>
+          <div class="rh-section">
+            <div class="rh-label">Services hit</div>
+            <div class="rh-value" id="rhServices">—</div>
+            <div class="rh-sub" id="rhServicesLabel">affected</div>
+          </div>
+          <div class="rh-section">
+            <div class="rh-label">Anomalies</div>
+            <div class="rh-value" id="rhAnomalies">—</div>
+            <div class="rh-sub">detected</div>
+          </div>
+          <div class="rh-section">
+            <div class="rh-label">Similar found</div>
+            <div class="rh-value" id="rhSimilar">—</div>
+            <div class="rh-sub">via FAISS</div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('analysis', this)">
+            <i class="ti ti-bulb" aria-hidden="true"></i> Analysis
+          </div>
+          <div class="tab" onclick="switchTab('graph', this)">
+            <i class="ti ti-topology-star" aria-hidden="true"></i> Service graph
+          </div>
+          <div class="tab" onclick="switchTab('similar', this)">
+            <i class="ti ti-history" aria-hidden="true"></i> Past incidents
+          </div>
+          <div class="tab" onclick="switchTab('timeline', this)">
+            <i class="ti ti-timeline" aria-hidden="true"></i> Timeline
+          </div>
+          <div class="tab" onclick="switchTab('report', this)">
+            <i class="ti ti-file-text" aria-hidden="true"></i> Report
+          </div>
+        </div>
+
+        <!-- Analysis Tab -->
+        <div class="tab-content active" id="tab-analysis">
+
+          <!-- Stats row -->
+          <div class="stats-row">
+            <div class="stat-box">
+              <div class="stat-n" id="stErrors" style="color:var(--red);">—</div>
+              <div class="stat-l">Error lines</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-n" id="stWarns" style="color:var(--amber);">—</div>
+              <div class="stat-l">Warnings</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-n" id="stTotal">—</div>
+              <div class="stat-l">Total lines</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-n" id="stExc" style="color:var(--coral);">—</div>
+              <div class="stat-l">Exceptions</div>
+            </div>
+          </div>
+
+          <!-- Anomalies -->
+          <div class="panel-label" style="margin-bottom:10px;">
+            <i class="ti ti-alert-circle" aria-hidden="true"></i>
+            Anomalies detected
+          </div>
+          <div class="anomaly-row" id="anomalyRow">
+            <span style="font-family:var(--mono);font-size:11px;color:var(--ink4);">No anomalies yet</span>
+          </div>
+
+          <!-- Root Cause -->
+          <div class="cause-card" id="causeCard">
+            <div class="cause-head">
+              <i class="ti ti-bulb" style="font-size:18px;color:var(--red);" aria-hidden="true"></i>
+              <div class="cause-title">Root cause identified</div>
+              <div class="cause-conf" id="causeConf">—% confidence</div>
+            </div>
+            <div class="cause-text" id="causeText">Analysis pending...</div>
+          </div>
+
+          <!-- Fixes -->
+          <div class="panel-label" style="margin-bottom:10px;">
+            <i class="ti ti-tool" aria-hidden="true"></i>
+            Suggested fixes
+          </div>
+          <div class="fixes-grid" id="fixesGrid"></div>
+
+          <!-- Runbook -->
+          <div class="panel-label" style="margin-bottom:10px;">
+            <i class="ti ti-list-check" aria-hidden="true"></i>
+            Resolution runbook
+          </div>
+          <div class="runbook-list" id="runbookList"></div>
+
+        </div>
+
+        <!-- Graph Tab -->
+        <div class="tab-content" id="tab-graph">
+          <div class="panel-label" style="margin-bottom:12px;">
+            <i class="ti ti-topology-star" aria-hidden="true"></i>
+            Service dependency graph
+          </div>
+          <div class="graph-container">
+            <svg id="serviceGraph"></svg>
+          </div>
+          <div style="margin-top:16px; font-family:var(--mono); font-size:11px; color:var(--ink4); line-height:1.7;">
+            Red nodes = likely root cause · Arrows show cascade direction · Node size = error count
+          </div>
+        </div>
+
+        <!-- Similar Tab -->
+        <div class="tab-content" id="tab-similar">
+          <div class="panel-label" style="margin-bottom:12px;">
+            <i class="ti ti-history" aria-hidden="true"></i>
+            Similar past incidents from FAISS
+          </div>
+          <div class="similar-list" id="similarList">
+            <div style="font-family:var(--mono);font-size:12px;color:var(--ink4);">No similar incidents found</div>
+          </div>
+        </div>
+
+        <!-- Timeline Tab -->
+        <div class="tab-content" id="tab-timeline">
+          <div class="panel-label" style="margin-bottom:12px;">
+            <i class="ti ti-timeline" aria-hidden="true"></i>
+            Event timeline reconstruction
+          </div>
+          <div class="timeline-list" id="timelineList"></div>
+        </div>
+
+        <!-- Report Tab -->
+        <div class="tab-content" id="tab-report">
+          <div class="report-box">
+            <div class="report-header">
+              <div class="report-title">
+                <i class="ti ti-file-text" style="font-size:16px;" aria-hidden="true"></i>
+                Incident report · Slack/PagerDuty ready
+              </div>
+              <button class="copy-btn" onclick="copyReport()">
+                <i class="ti ti-copy" style="font-size:14px;" aria-hidden="true"></i>
+                Copy
+              </button>
+            </div>
+            <div class="report-body" id="reportBody">Report will appear after analysis...</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const SAMPLES = {
+      db: `[ERROR] 2026-05-19 14:23:01.442 payment-service
+java.lang.NullPointerException: Cannot invoke method on null object reference
+    at com.company.payment.PaymentProcessor.processTransaction(PaymentProcessor.java:847)
+    at com.company.payment.PaymentController.handlePayment(PaymentController.java:203)
+[WARN]  2026-05-19 14:23:02.118 payment-service DB connection pool exhausted (10/10 connections in use)
+[ERROR] 2026-05-19 14:23:04.334 payment-service Transaction timeout after 30000ms - giving up
+[ERROR] 2026-05-19 14:23:05.001 order-service Upstream payment-service call failed: Connection refused
+[ERROR] 2026-05-19 14:23:05.223 notification-service Cascade failure detected from order-service
+[WARN]  2026-05-19 14:23:06.445 payment-service Unable to acquire connection from pool after 5000ms`,
+
+      memory: `[INFO]  2026-05-19 09:00:01 auth-service Service started, heap: 256MB/2GB
+[WARN]  2026-05-19 09:45:23 auth-service Heap usage: 800MB/2GB - approaching threshold
+[WARN]  2026-05-19 10:30:11 auth-service GC overhead limit warning - heap: 1.4GB/2GB
+[WARN]  2026-05-19 11:15:44 auth-service GC overhead limit warning - heap: 1.8GB/2GB
+[ERROR] 2026-05-19 11:47:32 auth-service java.lang.OutOfMemoryError: Java heap space
+    at com.company.auth.JwtTokenCache.storeToken(JwtTokenCache.java:156)
+[ERROR] 2026-05-19 11:47:33 auth-service Service crashed - restarting
+[ERROR] 2026-05-19 11:47:35 api-gateway Authentication service unavailable - 503`,
+
+      cascade: `[ERROR] 2026-05-19 16:10:22 payment-service Database query timeout after 30s - full table scan detected
+[ERROR] 2026-05-19 16:10:52 order-service Payment verification timeout - upstream payment-service unresponsive
+[ERROR] 2026-05-19 16:10:53 order-service Failed to process order #847291 - payment timeout
+[ERROR] 2026-05-19 16:10:54 inventory-service Order rollback triggered by order-service failure
+[ERROR] 2026-05-19 16:10:55 notification-service Cannot send order confirmation - order-service down
+[WARN]  2026-05-19 16:10:56 api-gateway Circuit breaker OPEN for payment-service route
+[ERROR] 2026-05-19 16:11:02 api-gateway 503 Service Unavailable returned to 2847 clients`,
+
+      oom: `[INFO]  2026-05-19 13:00:00 ml-service Loading model: bert-large-uncased (1.3GB)
+[WARN]  2026-05-19 13:00:45 ml-service Memory usage: 6.2GB/8GB after model load
+[INFO]  2026-05-19 13:01:00 ml-service Processing inference batch size: 128
+[WARN]  2026-05-19 13:01:23 ml-service Memory usage: 7.8GB/8GB - critical threshold
+[ERROR] 2026-05-19 13:01:45 ml-service java.lang.OutOfMemoryError: CUDA out of memory
+[ERROR] 2026-05-19 13:01:45 ml-service Failed to allocate 2.4GB tensor for batch inference
+[ERROR] 2026-05-19 13:01:46 ml-service Inference service crashed - 500 returned to 342 pending requests
+[ERROR] 2026-05-19 13:01:47 api-gateway ml-service unreachable - cascade to recommendation-service`
+    };
+
+    let reportText = '';
+    let totalAnalyzed = 0;
+    let confidenceSum = 0;
+
+    function loadSample(key) {
+      document.getElementById('logInput').value = SAMPLES[key];
+      showToast(`Loaded ${key} sample logs`);
+    }
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        document.getElementById('logInput').value = e.target.result;
+        showToast(`Loaded ${file.name}`);
+      };
+      reader.readAsText(file);
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    function switchTab(name, el) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById('tab-' + name).classList.add('active');
+    }
+
+    function setPipStep(id, state) {
+      const el = document.getElementById('pip-' + id);
+      const st = document.getElementById('ps-' + id);
+      el.className = 'pip-step ' + state;
+      st.textContent = state === 'active' ? 'running...' : state === 'done' ? 'done ✓' : 'waiting';
+    }
+
+    function resetPipeline() {
+      ['parse','anomaly','severity','compress','faiss','llm'].forEach(s => setPipStep(s, ''));
+    }
+
+    async function runAnalysis() {
+      const logs = document.getElementById('logInput').value.trim();
+      if (!logs) { showToast('Please paste some logs first'); return; }
+
+      const btn = document.getElementById('analyzeBtn');
+      btn.disabled = true;
+      btn.classList.add('loading');
+      resetPipeline();
+
+      document.getElementById('welcomeState').style.display = 'none';
+      document.getElementById('resultsState').classList.remove('show');
+
+      const steps = ['parse','anomaly','severity','compress','faiss','llm'];
+      const delays = [0, 1000, 2000, 3500, 5000, 7000];
+
+      let prevStep = null;
+      steps.forEach((step, i) => {
+        setTimeout(() => {
+          if (prevStep) setPipStep(prevStep, 'done');
+          setPipStep(step, 'active');
+          prevStep = step;
+        }, delays[i]);
+      });
+
+      try {
+        const res = await fetch('/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ logs })
+        });
+
+        const data = await res.json();
+        steps.forEach(s => setPipStep(s, 'done'));
+
+        if (data.error) {
+          showToast('Error: ' + data.error);
+          document.getElementById('welcomeState').style.display = 'flex';
+          return;
+        }
+
+        renderResults(data);
+        totalAnalyzed++;
+        confidenceSum += data.analysis?.confidence || 0;
+        document.getElementById('hTotalAnalyzed').textContent = totalAnalyzed;
+        document.getElementById('hAvgConf').textContent = Math.round(confidenceSum / totalAnalyzed) + '%';
+        document.getElementById('hLastSev').textContent = data.severity?.priority || '—';
+
+        showToast('Analysis complete!');
+
+      } catch(e) {
+        showToast('Analysis failed: ' + e.message);
+        document.getElementById('welcomeState').style.display = 'flex';
+      }
+
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+
+    function renderResults(data) {
+      const { parsed, anomalies, severity, similar_incidents, analysis, service_graph, report } = data;
+
+      // Header stats
+      document.getElementById('rhSev').textContent = severity.priority;
+      document.getElementById('rhSev').style.color = severity.color;
+      document.getElementById('rhSevLabel').textContent = severity.label;
+      document.getElementById('rhConf').textContent = (analysis.confidence || 0) + '%';
+      document.getElementById('rhServices').textContent = parsed.services.length;
+      document.getElementById('rhServicesLabel').textContent = parsed.services.slice(0,2).join(', ') || 'none';
+      document.getElementById('rhAnomalies').textContent = anomalies.length;
+      document.getElementById('rhSimilar').textContent = similar_incidents.length;
+
+      // Stats
+      document.getElementById('stErrors').textContent = parsed.error_count;
+      document.getElementById('stWarns').textContent = parsed.warn_count;
+      document.getElementById('stTotal').textContent = parsed.total_lines;
+      document.getElementById('stExc').textContent = parsed.exceptions.length;
+
+      // Anomalies
+      const aRow = document.getElementById('anomalyRow');
+      if (anomalies.length > 0) {
+        aRow.innerHTML = anomalies.map(a => {
+          const colors = {
+            critical: { bg: 'var(--red-light)', color: 'var(--red)' },
+            high: { bg: 'var(--amber-light)', color: 'var(--amber)' },
+            medium: { bg: 'var(--blue-light)', color: 'var(--blue)' }
+          };
+          const c = colors[a.severity] || colors.medium;
+          return `<div class="anomaly-chip" style="background:${c.bg};color:${c.color};">
+            ${a.icon} ${a.description}
+          </div>`;
+        }).join('');
+      } else {
+        aRow.innerHTML = `<div class="anomaly-chip" style="background:var(--green-light);color:var(--green);">✓ No anomalies detected</div>`;
+      }
+
+      // Root cause
+      document.getElementById('causeText').textContent = analysis.root_cause || 'Could not determine root cause';
+      document.getElementById('causeConf').textContent = (analysis.confidence || 0) + '% confidence';
+
+      // Fixes
+      const fixes = analysis.fixes || [];
+      const priorityColors = {
+        immediate: { bg: 'var(--red-light)', color: 'var(--red)' },
+        short_term: { bg: 'var(--amber-light)', color: 'var(--amber)' },
+        long_term: { bg: 'var(--blue-light)', color: 'var(--blue)' }
+      };
+      document.getElementById('fixesGrid').innerHTML = fixes.map((f, i) => {
+        const pc = priorityColors[f.priority] || priorityColors.short_term;
+        return `<div class="fix-card">
+          <div class="fix-num">${i+1}</div>
+          <div class="fix-body">
+            <div class="fix-text">${f.fix}</div>
+            <div class="fix-meta">
+              <div class="fix-conf"><i class="ti ti-check" style="font-size:12px;" aria-hidden="true"></i> ${f.confidence}% confidence</div>
+              <div class="fix-priority" style="background:${pc.bg};color:${pc.color};">${f.priority?.replace('_', ' ')}</div>
+            </div>
+          </div>
+        </div>`;
+      }).join('') || '<div style="font-family:var(--mono);font-size:12px;color:var(--ink4);">No fixes generated</div>';
+
+      // Runbook
+      const runbook = analysis.runbook || [];
+      document.getElementById('runbookList').innerHTML = runbook.map((step, i) => `
+        <div class="runbook-step">
+          <div class="runbook-line"></div>
+          <div class="runbook-num">${i+1}</div>
+          <div class="runbook-text">${step}</div>
+        </div>
+      `).join('') || '<div style="font-family:var(--mono);font-size:12px;color:var(--ink4);">No runbook generated</div>';
+
+      // Service graph
+      drawServiceGraph(service_graph);
+
+      // Similar incidents
+      const simList = document.getElementById('similarList');
+      if (similar_incidents.length > 0) {
+        simList.innerHTML = similar_incidents.map(inc => {
+          const matchColor = inc.similarity >= 85 ? 'var(--red)' : inc.similarity >= 70 ? 'var(--amber)' : 'var(--blue)';
+          return `<div class="similar-card">
+            <div class="similar-match" style="color:${matchColor};">${inc.similarity}%</div>
+            <div class="similar-body">
+              <div class="similar-id">${inc.id} · ${inc.date || ''} · ${inc.severity}</div>
+              <div class="similar-title">${inc.title}</div>
+              <div class="similar-resolution">${inc.resolution}</div>
+            </div>
+            <div class="similar-resolved">${inc.resolved_in}</div>
+          </div>`;
+        }).join('');
+      } else {
+        simList.innerHTML = '<div style="font-family:var(--mono);font-size:12px;color:var(--ink4);">No similar incidents found in FAISS index</div>';
+      }
+
+      // Timeline from error lines
+      const errorLines = parsed.error_lines || [];
+      const warnLines = parsed.warn_lines || [];
+      const allEvents = [...errorLines.map(l => ({...l, level: 'error'})), ...warnLines.map(l => ({...l, level: 'warn'}))];
+      allEvents.sort((a, b) => a.line_num - b.line_num);
+
+      document.getElementById('timelineList').innerHTML = allEvents.slice(0, 12).map(ev => {
+        const tsMatch = ev.text.match(/\d{2}:\d{2}:\d{2}/);
+        const ts = tsMatch ? tsMatch[0] : `line ${ev.line_num}`;
+        const dotColor = ev.level === 'error' ? 'var(--red)' : 'var(--amber)';
+        const svcMatch = ev.text.match(/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)-service/);
+        const svc = svcMatch ? svcMatch[0] : '';
+        const cleanText = ev.text.replace(/^\[(?:ERROR|WARN|WARNING|INFO)\]\s*/, '').replace(/\d{4}-\d{2}-\d{2}\s+/, '').replace(/\d{2}:\d{2}:\d{2}(?:\.\d+)?\s+/, '');
+        return `<div class="tl-item">
+          <div class="tl-dot" style="background:${dotColor};"></div>
+          <div class="tl-time">${ts}</div>
+          <div class="tl-text">${cleanText.substring(0, 80)}${svc ? `<span class="tl-service">${svc}</span>` : ''}</div>
+        </div>`;
+      }).join('') || '<div style="font-family:var(--mono);font-size:12px;color:var(--ink4);">No events to display</div>';
+
+      // Report
+      reportText = report;
+      document.getElementById('reportBody').innerHTML = marked.parse(report);
+
+      document.getElementById('resultsState').classList.add('show');
+    }
+
+    function drawServiceGraph(graphData) {
+      const svg = d3.select('#serviceGraph');
+      svg.selectAll('*').remove();
+
+      const nodes = graphData.nodes || [];
+      const edges = graphData.edges || [];
+
+      if (nodes.length === 0) {
+        svg.append('text')
+          .attr('x', '50%').attr('y', '50%')
+          .attr('text-anchor', 'middle')
+          .attr('fill', '#9A9690')
+          .attr('font-family', 'IBM Plex Mono')
+          .attr('font-size', '12px')
+          .text('No service graph data available');
+        return;
+      }
+
+      const W = 580, H = 280;
+      svg.attr('viewBox', `0 0 ${W} ${H}`);
+
+      const simulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(edges).id(d => d.id).distance(120))
+        .force('charge', d3.forceManyBody().strength(-200))
+        .force('center', d3.forceCenter(W/2, H/2))
+        .force('collision', d3.forceCollide(40));
+
+      const link = svg.append('g')
+        .selectAll('line')
+        .data(edges)
+        .join('line')
+        .attr('stroke', '#E2DDD7')
+        .attr('stroke-width', 2)
+        .attr('marker-end', 'url(#arrow)');
+
+      svg.append('defs').append('marker')
+        .attr('id', 'arrow')
+        .attr('viewBox', '0 -5 10 10')
+        .attr('refX', 28).attr('refY', 0)
+        .attr('markerWidth', 6).attr('markerHeight', 6)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('d', 'M0,-5L10,0L0,5')
+        .attr('fill', '#9A9690');
+
+      const node = svg.append('g')
+        .selectAll('g')
+        .data(nodes)
+        .join('g')
+        .call(d3.drag()
+          .on('start', (event, d) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+          .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
+          .on('end', (event, d) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+        );
+
+      node.append('circle')
+        .attr('r', d => d.is_root ? 28 : 22)
+        .attr('fill', d => d.is_root ? '#FCEBEB' : '#F5F1EC')
+        .attr('stroke', d => d.is_root ? '#E24B4A' : '#E2DDD7')
+        .attr('stroke-width', d => d.is_root ? 2 : 1.5);
+
+      node.append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', '0.35em')
+        .attr('font-family', 'IBM Plex Mono')
+        .attr('font-size', '9px')
+        .attr('fill', d => d.is_root ? '#A32D2D' : '#6B6760')
+        .text(d => d.label.replace('-service', ''));
+
+      node.append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', '40px')
+        .attr('font-family', 'IBM Plex Mono')
+        .attr('font-size', '9px')
+        .attr('fill', '#9A9690')
+        .text(d => d.is_root ? '← root cause' : '');
+
+      simulation.on('tick', () => {
+        link
+          .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+        node.attr('transform', d => `translate(${Math.max(30, Math.min(W-30, d.x))},${Math.max(30, Math.min(H-30, d.y))})`);
+      });
+    }
+
+    function copyReport() {
+      navigator.clipboard.writeText(reportText).then(() => showToast('Report copied!'));
+    }
+  </script>
+</body>
+</html>
