@@ -1,4 +1,4 @@
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 from dotenv import load_dotenv
 import faiss
 import numpy as np
@@ -19,9 +19,19 @@ load_dotenv()
 # 2. New log summary converted to vector
 # 3. FAISS finds top-K most similar past incidents
 # 4. Retrieved incidents become context for LLM
+#
+# Why fastembed instead of sentence-transformers?
+# Same all-MiniLM-L6-v2 model, but runs on ONNX
+# runtime instead of full PyTorch — a fraction of
+# the memory footprint, needed to fit Render's
+# free-tier 512MB RAM limit.
 # ──────────────────────────────────────────────
 
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
+embedder = TextEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+
+def embed_text(text: str) -> np.ndarray:
+    return next(iter(embedder.embed([text])))
 
 DIMENSION = 384
 INDEX_PATH = "faiss_index/incidents.index"
@@ -75,7 +85,7 @@ def add_incident(incident: dict):
     text = f"{incident['title']} {incident.get('description', '')} {incident.get('root_cause', '')}"
 
     # Embed and normalize for cosine similarity
-    embedding = embedder.encode([text])[0]
+    embedding = embed_text(text)
     embedding = embedding / np.linalg.norm(embedding)
     embedding = embedding.reshape(1, -1).astype(np.float32)
 
@@ -98,7 +108,7 @@ def search_similar(query_text: str, top_k: int = 3) -> list:
         return []
 
     # Embed query
-    embedding = embedder.encode([query_text])[0]
+    embedding = embed_text(query_text)
     embedding = embedding / np.linalg.norm(embedding)
     embedding = embedding.reshape(1, -1).astype(np.float32)
 
