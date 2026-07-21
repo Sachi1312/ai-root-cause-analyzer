@@ -58,7 +58,7 @@ cd ai-root-cause-analyzer
 
 ### 2. Install dependencies
 ```
-pip install fastapi uvicorn sentence-transformers faiss-cpu python-dotenv requests langchain langchain-community
+pip install -r requirements.txt
 ```
 
 ### 3. Create a .env file
@@ -73,6 +73,17 @@ python app.py
 
 ### 5. Open browser at http://127.0.0.1:8000
 
+## Deployment (Render)
+This app is deployed on [Render](https://render.com) as a Python web service.
+
+1. Push this repo to GitHub
+2. On Render: **New +** → **Blueprint** → connect this repo (`render.yaml` is auto-detected)
+3. Add `OPENROUTER_API_KEY` as an environment variable in the Render dashboard — never commit it
+4. Render builds with `pip install -r requirements.txt` and starts with `uvicorn app:app --host 0.0.0.0 --port $PORT`
+5. The FAISS index isn't committed (it's gitignored) — `seed_sample_incidents()` rebuilds it from scratch on first boot
+
+**Live demo:** _add your Render URL here once deployed_
+
 ## Project Structure
 
 ```
@@ -81,10 +92,12 @@ ai-root-cause-analyzer/
 ├── analyzer.py         # Full analysis pipeline orchestrator
 ├── log_parser.py       # Regex log parser, anomaly detector, severity scorer
 ├── rag_engine.py       # FAISS vector store and similarity search
-├── faiss_index/        # Local FAISS index files (auto-created)
+├── faiss_index/        # Local FAISS index files (auto-created, gitignored)
 ├── templates/
 │   └── index.html      # Warm editorial UI with D3.js graph
 ├── static/             # Static assets
+├── requirements.txt    # Python dependencies
+├── render.yaml          # Render deployment config
 ├── .env                # API keys (never commit this)
 ├── .gitignore
 └── README.md

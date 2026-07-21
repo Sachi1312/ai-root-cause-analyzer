@@ -21,7 +21,7 @@ load_dotenv()
 # 4. Retrieved incidents become context for LLM
 # ──────────────────────────────────────────────
 
-embedder = SentenceTransformer("all-MiniLM-L6-v2", local_files_only=True)
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
 DIMENSION = 384
 INDEX_PATH = "faiss_index/incidents.index"
